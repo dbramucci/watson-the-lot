@@ -2,7 +2,7 @@
 
 ## Website Location
 
-Our project can be found at [watsonthelot.tech](watsonthelot.tech) and the ip address for our server is [138.197.16.151](138.197.16.151).
+Our project can be found at [watsonthelot.tech](http://watsonthelot.tech) and the ip address for our server is [138.197.16.151](http://138.197.16.151).
 
 ## Main Goal
 Our Hack K-State Fall 2016 project to detect cars on a parking lot and produce useful data from it.
