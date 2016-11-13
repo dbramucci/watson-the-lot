@@ -1,12 +1,22 @@
 from flask import Flask, request, url_for
+from twilio.rest import TwilioRestClient
 from urllib.request import urlopen
+from math import radians, sqrt, cos
 import data
 from PIL import Image
 from os import curdir
 from functools import reduce
 from imageMaker import *
 import json
-from secretsauce import PHONE_ID
+from secretsauce import PHONE_ID, account_sid, auth_token
+
+client = TwilioRestClient(account_sid, auth_token)
+
+EARTH_RADIUS = 6317009  # meters
+
+parking_lot_location = 39.189991, -96.584112
+
+within_range = False
 
 app = Flask(__name__)
 
@@ -24,9 +34,11 @@ def main():
                 url_for('static', filename='red.png') if b else url_for(
                     'static', filename='green.png')) for b in parking_lot))
         parking_text = "hi"
-        print(reduce(lambda a, b: a+b, map(lambda x: 0 if x else 1, parking_lot)))
+        print(reduce(lambda a, b: a + b,
+                     map(lambda x: 0 if x else 1, parking_lot)))
         parking_text = "There are {} spots free out of {} spots total".format(
-            reduce(lambda a, b: a+b, map(lambda x: 1 if x else 0, parking_lot)), 10)
+            reduce(lambda a, b: a + b,
+                   map(lambda x: 1 if x else 0, parking_lot)), 10)
         dictionary = {k: url_for('static', filename=v) for k, v in
                       data.srcs.items()}
         dictionary['parking_text'] = parking_text
@@ -58,6 +70,21 @@ def image():
     return url_for('static', filename='index_480.png')
 
 
+def calc_dist(a, b):
+    a = tuple(map(radians, a))
+    b = tuple(map(radians, b))
+    delta_latitude = a[0] - b[0]
+    delta_longitude = a[1] - b[1]
+    mean_latitude = (a[0] + b[0]) / 2
+    return EARTH_RADIUS * sqrt(
+        delta_latitude ** 2 + (cos(mean_latitude) * delta_longitude) ** 2)
+
+
+def send_sms(text: str):
+    message = client.messages.create(to="(913) 904-6044", from_="(913) 735-1407",
+                                     body=text)
+
+
 @app.route("/location", methods=["POST"])
 def location():
     values = json.loads(request.data.decode("utf-8"))
@@ -67,9 +94,27 @@ def location():
         print("Coordinates")
         print(float(values['location']['longitude']), ',',
               float(values['location']['latitude']))
+        global within_range
+        new_location = float(values['location']['longitude']), float(
+            values['location']['latitude'])
+        if not within_range and calc_dist(new_location, parking_lot_location):
+            within_range = True
+            if reduce(lambda x, y: x and y, parking_lot):
+                send_sms("The lot is full")
+            else:
+                send_sms("There are {} spots left.".format(reduce(lambda a, b: a + b,
+                     map(lambda x: 0 if x else 1, parking_lot))))
+            within_range = True
+        global location
+        location = new_location
         # print(values['latitude'], values['longitude'])
     return ""
 
+
+@app.route("/reset")
+def reset():
+    within_range = False
+    return ""
 
 @app.route("/update")
 def update():
