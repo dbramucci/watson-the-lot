@@ -64,12 +64,21 @@ x = None
 
 @app.route("/check")
 def check_parking_spots():
-    pics = split_parking_lot(parking_lot_image)
-    car_in_spot = []
-    for i, p in enumerate(pics):
-        p.save("C:/Users/Archer/Documents/GitHub/watson-the-lot/server/static/{}.png".format(i))
-        if i < 1:
-            urlopen("http://iot-1-hr-practice.mybluemix.net/reco?imageurl={}/static/{}.png".format('http://d02e424d.ngrok.io', i))
+    # pics = split_parking_lot(parking_lot_image)
+    car_in_spot = [False for _ in range(10)]
+    for i in range(10):
+        if i < 10:
+            x = urlopen("http://iot-1-hr-practice.mybluemix.net/reco?imageurl={}/static/{}.png".format('http://159.203.129.227', i)).read()
+            print("TEXT\n\n{}\n\n".format(x))
+            classifications = json.loads(x.decode())['images'][0]['classifiers']
+            for j in classifications:
+                for k in j['classes']:
+                    object_name = k['class']
+                    if object_name == "car" or object_name == "vehicle" or object_name == "truck":
+                        print(object_name)
+                        car_in_spot[i] = True
+                print(j['classes'])
+        print(car_in_spot)
     return ''
 
 
